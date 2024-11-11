@@ -1,0 +1,6 @@
+---
+- name: Install Helm, MetalLB and NGINX Ingress
+  hosts: master
+  become: true
+  roles:
+    - role: "helm"

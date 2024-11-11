@@ -1,0 +1,3 @@
+# To run
+
+ansible-galaxy collection install community.kubernetes

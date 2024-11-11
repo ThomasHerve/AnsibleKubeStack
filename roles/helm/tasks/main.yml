@@ -1,0 +1,52 @@
+- name: Check if helm is installed
+  command: helm version --short
+  register: helm_installed
+  ignore_errors: true
+
+- name: Install curl
+  apt:
+    name: curl
+    state: present
+
+- name: Install Helm
+  shell: |
+    curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+  when: helm_installed.rc != 0
+
+- name: Add helm repo
+  command: helm repo add stable https://charts.helm.sh/stable && helm repo add bitnami https://charts.bitnami.com/bitnami
+  args:
+    creates: ~/.cache/helm/repository/stable-index.yaml
+
+- name: Update helm repo
+  command: helm repo update
+
+- name: Install MetalLB
+  kubernetes.core.helm:
+    name: metallb
+    chart_ref: bitnami/metallb
+    release_name: metallb
+    namespace: metallb-system
+    create_namespace: true
+    values:
+      configInline:
+        address-pools:
+          - name: default
+            protocol: layer2
+            addresses:
+              - "{{ip_begin}}-{{ip_end}}"  
+  environment:
+    KUBECONFIG: /root/.kube/config
+
+
+- name: Install NGINX Ingress
+  kubernetes.core.helm:
+    name: nginx-ingress
+    chart_ref: bitnami/nginx-ingress-controller
+    release_name: nginx-ingress
+    namespace: ingress-nginx
+    create_namespace: true
+    values:
+      controller:
+        service:
+          loadBalancerIP: "{{ip_begin}}"

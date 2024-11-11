@@ -1,0 +1,76 @@
+- name: Install Docker
+  become: yes
+  apt:
+    name: docker.io
+    state: present
+    
+- name: Download GPG key of Kubernetes
+  ansible.builtin.apt_key:
+    url: https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key
+    state: present
+
+- name: add the Kubernetes repo
+  ansible.builtin.apt_repository:
+    repo: "deb [trusted=yes] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /"
+    state: present
+    filename: "kubernetes"
+
+- name: Update cache
+  ansible.builtin.apt:
+    update_cache: yes
+
+- name: Install kubeadm, kubelet, and kubectl
+  become: yes
+  apt:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - kubeadm
+    - kubelet
+    - kubectl
+  
+- name: Désactiver le swap
+  become: yes
+  command: swapoff -a
+
+- name: Initialize Kubernetes master
+  become: yes
+  command: kubeadm init --pod-network-cidr=10.244.0.0/16
+  register: kubeadm_output
+  ignore_errors: yes
+
+- name: Create the .kube directory
+  become: yes
+  file:
+    path: /root/.kube
+    state: directory
+    mode: '0755'
+
+- name: copy admin.conf
+  become: yes
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /root/.kube/config
+    remote_src: yes
+    mode: '0600'
+
+- name: Changer the owner of .kube/config
+  become: yes
+  command: "chown {{ ansible_uid }}:{{ ansible_gid }} /root/.kube/config"
+  when: ansible_uid is defined and ansible_gid is defined
+
+- name: Install Calico network plugin
+  become: yes
+  command: kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
+  when: "'calico' in kubeadm_output.stdout"
+
+- name: Générer un token de démarrage sur le master
+  shell: kubeadm token create --print-join-command
+  register: kubeadm_join_command
+
+- name: Set kubeadm join command for workers
+  ansible.builtin.add_host:
+    name: "command"
+    kubeadm_join_command: "{{ kubeadm_join_command.stdout }}"
+  when: kubeadm_join_command is defined
+

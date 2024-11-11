@@ -1,0 +1,42 @@
+- name: Install Docker
+  become: yes
+  apt:
+    name: docker.io
+    state: present
+
+- name: Télécharger et ajouter la clé GPG de Kubernetes
+  ansible.builtin.apt_key:
+    url: https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key
+    state: present
+
+- name: Ajouter le dépôt Kubernetes
+  ansible.builtin.apt_repository:
+    repo: "deb [trusted=yes] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /"
+    state: present
+    filename: "kubernetes"
+
+- name: Mettre à jour le cache des paquets
+  ansible.builtin.apt:
+    update_cache: yes
+
+- name: Install kubeadm, kubelet, and kubectl
+  become: yes
+  apt:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - kubeadm
+    - kubelet
+    - kubectl
+
+- name: Désactiver le swap
+  become: yes
+  command: swapoff -a
+
+- name: debug
+  ansible.builtin.debug: 
+    msg: "{{ hostvars['command']['kubeadm_join_command'] }}"
+
+- name: Join worker nodes to the cluster
+  become: yes
+  command: "{{ hostvars['command']['kubeadm_join_command'] }}"

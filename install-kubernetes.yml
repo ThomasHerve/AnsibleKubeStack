@@ -1,0 +1,9 @@
+---
+- name: "Installation master"
+  hosts: master
+  roles:
+    - role: "kubernetes/master"
+- name: "Installation workers"
+  hosts: workers
+  roles:
+    - role: "kubernetes/worker"
