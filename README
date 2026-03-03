@@ -1,3 +1,1 @@
-# To run
-
-ansible-galaxy collection install community.kubernetes
+Petit playbook pour deployer une cluster kubernetes bare metal.
